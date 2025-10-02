@@ -28,6 +28,8 @@ func SetupRoutes(
 		{
 			auth.POST("/register", authController.Register)
 			auth.POST("/login", authController.Login)
+			auth.POST("/verify-email", authController.VerifyEmail)
+			auth.POST("/resend-verification", authController.ResendVerification)
 			auth.POST("/forget-password", authController.ForgetPassword)
 			auth.POST("/reset-password", authController.ResetPassword)
 		}

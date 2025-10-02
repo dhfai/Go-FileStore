@@ -9,14 +9,16 @@ import (
 
 // User represents the user table in database
 type User struct {
-	ID        uuid.UUID      `gorm:"type:uuid;primary_key;default:gen_random_uuid()" json:"id"`
-	Username  string         `gorm:"type:varchar(50);unique;not null" json:"username" validate:"required,min=3,max=50"`
-	Email     string         `gorm:"type:varchar(100);unique;not null" json:"email" validate:"required,email"`
-	Password  string         `gorm:"type:varchar(255);not null" json:"-"`
-	IsActive  bool           `gorm:"default:true" json:"is_active"`
-	CreatedAt time.Time      `json:"created_at"`
-	UpdatedAt time.Time      `json:"updated_at"`
-	DeletedAt gorm.DeletedAt `gorm:"index" json:"-"`
+	ID              uuid.UUID      `gorm:"type:uuid;primary_key;default:gen_random_uuid()" json:"id"`
+	Username        string         `gorm:"type:varchar(50);unique;not null" json:"username" validate:"required,min=3,max=50"`
+	Email           string         `gorm:"type:varchar(100);unique;not null" json:"email" validate:"required,email"`
+	Password        string         `gorm:"type:varchar(255);not null" json:"-"`
+	IsActive        bool           `gorm:"default:true" json:"is_active"`
+	EmailVerified   bool           `gorm:"default:false" json:"email_verified"`
+	EmailVerifiedAt *time.Time     `gorm:"type:timestamp" json:"email_verified_at,omitempty"`
+	CreatedAt       time.Time      `json:"created_at"`
+	UpdatedAt       time.Time      `json:"updated_at"`
+	DeletedAt       gorm.DeletedAt `gorm:"index" json:"-"`
 
 	// Relationship
 	Profile *Profile `gorm:"foreignKey:UserID;constraint:OnUpdate:CASCADE,OnDelete:CASCADE;" json:"profile,omitempty"`

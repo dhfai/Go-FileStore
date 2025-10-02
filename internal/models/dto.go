@@ -1,5 +1,7 @@
 package models
 
+import "time"
+
 // Request and Response DTOs
 
 // RegisterRequest represents the registration request payload
@@ -28,6 +30,17 @@ type ResetPasswordRequest struct {
 	NewPassword string `json:"new_password" validate:"required,min=8"`
 }
 
+// VerifyEmailRequest represents the email verification request payload
+type VerifyEmailRequest struct {
+	Email   string `json:"email" validate:"required,email"`
+	OTPCode string `json:"otp_code" validate:"required,len=6"`
+}
+
+// ResendVerificationRequest represents the resend verification email request payload
+type ResendVerificationRequest struct {
+	Email string `json:"email" validate:"required,email"`
+}
+
 // UpdateProfileRequest represents the update profile request payload
 type UpdateProfileRequest struct {
 	FullName    string `json:"full_name" validate:"max=100"`
@@ -44,11 +57,13 @@ type LoginResponse struct {
 
 // UserResponse represents the user response (without sensitive data)
 type UserResponse struct {
-	ID       string   `json:"id"`
-	Username string   `json:"username"`
-	Email    string   `json:"email"`
-	IsActive bool     `json:"is_active"`
-	Profile  *Profile `json:"profile,omitempty"`
+	ID              string     `json:"id"`
+	Username        string     `json:"username"`
+	Email           string     `json:"email"`
+	IsActive        bool       `json:"is_active"`
+	EmailVerified   bool       `json:"email_verified"`
+	EmailVerifiedAt *time.Time `json:"email_verified_at,omitempty"`
+	Profile         *Profile   `json:"profile,omitempty"`
 }
 
 // APIResponse represents a standard API response
@@ -68,10 +83,12 @@ type ValidationError struct {
 // ToUserResponse converts User model to UserResponse
 func (u *User) ToUserResponse() *UserResponse {
 	return &UserResponse{
-		ID:       u.ID.String(),
-		Username: u.Username,
-		Email:    u.Email,
-		IsActive: u.IsActive,
-		Profile:  u.Profile,
+		ID:              u.ID.String(),
+		Username:        u.Username,
+		Email:           u.Email,
+		IsActive:        u.IsActive,
+		EmailVerified:   u.EmailVerified,
+		EmailVerifiedAt: u.EmailVerifiedAt,
+		Profile:         u.Profile,
 	}
 }

@@ -59,7 +59,7 @@ file-store/
 
 ### Authentication Endpoints
 
-#### Register
+#### Register (Sends Verification Email)
 ```http
 POST /api/v1/auth/register
 Content-Type: application/json
@@ -72,7 +72,28 @@ Content-Type: application/json
 }
 ```
 
-#### Login
+#### Verify Email
+```http
+POST /api/v1/auth/verify-email
+Content-Type: application/json
+
+{
+    "email": "john@example.com",
+    "code": "123456"
+}
+```
+
+#### Resend Verification Email
+```http
+POST /api/v1/auth/resend-verification
+Content-Type: application/json
+
+{
+    "email": "john@example.com"
+}
+```
+
+#### Login (Requires Verified Email)
 ```http
 POST /api/v1/auth/login
 Content-Type: application/json
