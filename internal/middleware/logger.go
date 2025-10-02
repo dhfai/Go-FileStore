@@ -1,10 +1,9 @@
 package middleware
 
 import (
-	"time"
-
 	"github.com/dhfai/Go-FileStore.git/pkg/logger"
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 	"github.com/sirupsen/logrus"
 )
 
@@ -13,7 +12,6 @@ func LoggerMiddleware() gin.HandlerFunc {
 	return gin.LoggerWithFormatter(func(param gin.LogFormatterParams) string {
 		log := logger.GetLogger()
 
-		// Determine log level based on status code
 		var logLevel logrus.Level
 		switch {
 		case param.StatusCode >= 500:
@@ -24,7 +22,6 @@ func LoggerMiddleware() gin.HandlerFunc {
 			logLevel = logrus.InfoLevel
 		}
 
-		// Create log entry with structured fields
 		entry := log.WithFields(logrus.Fields{
 			"method":     param.Method,
 			"path":       param.Path,
@@ -46,7 +43,6 @@ func LoggerMiddleware() gin.HandlerFunc {
 			entry.Info(message)
 		}
 
-		// Return empty string since we're using logrus for logging
 		return ""
 	})
 }
@@ -56,7 +52,6 @@ func RequestIDMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		requestID := c.GetHeader("X-Request-ID")
 		if requestID == "" {
-			// Generate a simple request ID (in production, use a proper UUID)
 			requestID = generateRequestID()
 		}
 
@@ -66,17 +61,6 @@ func RequestIDMiddleware() gin.HandlerFunc {
 	}
 }
 
-// generateRequestID generates a simple request ID
 func generateRequestID() string {
-	return time.Now().Format("20060102-150405") + "-" + generateRandomString(6)
-}
-
-// generateRandomString generates a random string of specified length
-func generateRandomString(length int) string {
-	const charset = "abcdefghijklmnopqrstuvwxyz0123456789"
-	b := make([]byte, length)
-	for i := range b {
-		b[i] = charset[time.Now().UnixNano()%int64(len(charset))]
-	}
-	return string(b)
+	return uuid.New().String()
 }
