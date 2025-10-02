@@ -55,7 +55,3 @@ temp/
 
 # Docker
 docker-compose.override.yml
-
-# Backup files
-*.bak
-*.backup

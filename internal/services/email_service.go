@@ -60,7 +60,10 @@ func (s *EmailService) SendOTPEmail(toEmail, otpCode, purpose string) error {
 	}
 
 	d := gomail.NewDialer(s.config.SMTPHost, port, s.config.SMTPUsername, s.config.SMTPPassword)
-	d.TLSConfig = &tls.Config{InsecureSkipVerify: false}
+	d.TLSConfig = &tls.Config{
+		ServerName:         s.config.SMTPHost,
+		InsecureSkipVerify: false,
+	}
 
 	if err := d.DialAndSend(m); err != nil {
 		log.WithError(err).WithField("email", toEmail).Error("Failed to send email")
@@ -71,7 +74,6 @@ func (s *EmailService) SendOTPEmail(toEmail, otpCode, purpose string) error {
 	return nil
 }
 
-// generatePasswordResetEmailBody generates the HTML body for password reset email
 func (s *EmailService) generatePasswordResetEmailBody(otpCode string) string {
 	return fmt.Sprintf(`
 <!DOCTYPE html>
@@ -114,7 +116,6 @@ func (s *EmailService) generatePasswordResetEmailBody(otpCode string) string {
 `, otpCode)
 }
 
-// generateEmailVerificationBody generates the HTML body for email verification
 func (s *EmailService) generateEmailVerificationBody(otpCode string) string {
 	return fmt.Sprintf(`
 <!DOCTYPE html>
@@ -156,7 +157,6 @@ func (s *EmailService) generateEmailVerificationBody(otpCode string) string {
 `, otpCode)
 }
 
-// generateGenericOTPBody generates a generic OTP email body
 func (s *EmailService) generateGenericOTPBody(otpCode string) string {
 	return fmt.Sprintf(`
 <!DOCTYPE html>

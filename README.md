@@ -267,14 +267,3 @@ All API responses follow a consistent format:
     "error": {} // Present on error responses
 }
 ```
-
-## Contributing
-
-1. Follow Go best practices
-2. Write tests for new features
-3. Use conventional commits
-4. Update documentation
-
-## License
-
-MIT License

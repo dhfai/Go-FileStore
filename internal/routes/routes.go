@@ -14,7 +14,6 @@ func SetupRoutes(
 	profileController *controllers.ProfileController,
 	authService *services.AuthService,
 ) {
-	// Health check endpoint (no middleware needed)
 	router.GET("/health", func(c *gin.Context) {
 		c.JSON(200, gin.H{
 			"status":  "ok",
@@ -23,10 +22,8 @@ func SetupRoutes(
 		})
 	})
 
-	// API v1 routes
 	v1 := router.Group("/api/v1")
 	{
-		// Public routes (no authentication required)
 		auth := v1.Group("/auth")
 		{
 			auth.POST("/register", authController.Register)
@@ -35,19 +32,16 @@ func SetupRoutes(
 			auth.POST("/reset-password", authController.ResetPassword)
 		}
 
-		// Protected routes (authentication required)
 		protected := v1.Group("/")
 		protected.Use(middleware.AuthMiddleware(authService))
 		{
-			// User profile routes
 			profile := protected.Group("/profile")
 			{
-				profile.GET("/", profileController.GetProfile)
-				profile.PUT("/", profileController.UpdateProfile)
-				profile.DELETE("/", profileController.DeleteProfile)
+				profile.GET("", profileController.GetProfile)
+				profile.PUT("", profileController.UpdateProfile)
+				profile.DELETE("", profileController.DeleteProfile)
 			}
 
-			// User info routes
 			user := protected.Group("/user")
 			{
 				user.GET("/info", profileController.GetUserInfo)
@@ -58,21 +52,10 @@ func SetupRoutes(
 
 // SetupMiddleware configures all middleware
 func SetupMiddleware(router *gin.Engine) {
-	// Request ID middleware (first to set request ID for all requests)
 	router.Use(middleware.RequestIDMiddleware())
-
-	// Logger middleware (after request ID)
 	router.Use(middleware.LoggerMiddleware())
-
-	// Error handling middleware
 	router.Use(middleware.ErrorHandlerMiddleware())
-
-	// Security headers middleware
 	router.Use(middleware.SecurityHeadersMiddleware())
-
-	// CORS middleware
 	router.Use(middleware.CORSMiddleware())
-
-	// Rate limiting middleware (optional)
 	router.Use(middleware.RateLimitMiddleware())
 }
