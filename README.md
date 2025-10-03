@@ -126,6 +126,34 @@ Content-Type: application/json
 }
 ```
 
+#### Logout (Requires Authentication)
+```http
+POST /api/v1/auth/logout
+Authorization: Bearer <jwt_token>
+```
+
+#### Request Delete Account (Requires Authentication)
+```http
+POST /api/v1/auth/request-delete-account
+Authorization: Bearer <jwt_token>
+Content-Type: application/json
+
+{
+    "password": "your_current_password"
+}
+```
+
+#### Delete Account (Requires Authentication)
+```http
+POST /api/v1/auth/delete-account
+Authorization: Bearer <jwt_token>
+Content-Type: application/json
+
+{
+    "otp_code": "123456"
+}
+```
+
 ### Profile Endpoints (Requires Authentication)
 
 #### Get Profile
@@ -276,6 +304,39 @@ Log levels:
 - `expires_at` (TIMESTAMP)
 - `used` (BOOLEAN)
 - `created_at`, `updated_at`
+
+### TokenBlacklist Table
+- `id` (UUID, Primary Key)
+- `token` (TEXT, JWT token)
+- `expires_at` (TIMESTAMP)
+- `created_at`
+
+## 📮 API Testing
+
+### Postman Collection
+Complete Postman collection tersedia di folder `postman/`:
+- `postman-collection.json` - Complete API collection dengan semua endpoints
+- `filestore-environment.json` - Environment variables template
+- `README.md` - Detailed setup dan usage guide
+
+**Features:**
+- ✅ Auto token management (login saves token, logout clears token)
+- ✅ Environment variables untuk easy testing
+- ✅ Complete request examples untuk semua endpoints
+- ✅ Test scripts untuk workflow automation
+- ✅ Pre-configured untuk development dan production testing
+
+**Quick Setup:**
+1. Import kedua files ke Postman
+2. Pilih "File Store API Environment"
+3. Run Register → Verify Email → Login
+4. Token otomatis tersimpan, siap untuk testing protected endpoints
+
+### VS Code REST Client
+Test files tersedia di folder `tests/`:
+- `api-tests.http` - Basic API testing
+- `email_verification_api.http` - Email verification flow
+- `logout_and_delete_api.http` - Logout dan delete account testing
 
 ## Error Handling
 

@@ -41,6 +41,16 @@ type ResendVerificationRequest struct {
 	Email string `json:"email" validate:"required,email"`
 }
 
+// DeleteAccountRequest represents the delete account request payload
+type DeleteAccountRequest struct {
+	OTPCode string `json:"otp_code" validate:"required,len=6"`
+}
+
+// RequestDeleteAccountRequest represents the request to delete account (sends OTP)
+type RequestDeleteAccountRequest struct {
+	Password string `json:"password" validate:"required"`
+}
+
 // UpdateProfileRequest represents the update profile request payload
 type UpdateProfileRequest struct {
 	FullName    string `json:"full_name" validate:"max=100"`

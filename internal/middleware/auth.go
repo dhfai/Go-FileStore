@@ -3,15 +3,17 @@ package middleware
 import (
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/dhfai/Go-FileStore.git/internal/models"
 	"github.com/dhfai/Go-FileStore.git/internal/services"
 	"github.com/dhfai/Go-FileStore.git/pkg/logger"
 	"github.com/gin-gonic/gin"
+	"gorm.io/gorm"
 )
 
 // AuthMiddleware validates JWT tokens and sets user context
-func AuthMiddleware(authService *services.AuthService) gin.HandlerFunc {
+func AuthMiddleware(authService *services.AuthService, db *gorm.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		log := logger.GetLogger()
 
@@ -40,6 +42,18 @@ func AuthMiddleware(authService *services.AuthService) gin.HandlerFunc {
 		}
 
 		token := tokenParts[1]
+
+		// Check if token is blacklisted
+		var blacklistCount int64
+		if err := db.Model(&models.TokenBlacklist{}).Where("token = ? AND expires_at > ?", token, time.Now()).Count(&blacklistCount).Error; err == nil && blacklistCount > 0 {
+			log.Warn("Blacklisted token used")
+			c.JSON(http.StatusUnauthorized, models.APIResponse{
+				Success: false,
+				Message: "Token has been revoked",
+			})
+			c.Abort()
+			return
+		}
 
 		// Validate token
 		claims, err := authService.ValidateToken(token)

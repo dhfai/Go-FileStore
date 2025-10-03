@@ -60,6 +60,7 @@ func (d *Database) Migrate() error {
 		&models.User{},
 		&models.Profile{},
 		&models.OTP{},
+		&models.TokenBlacklist{},
 	)
 	if err != nil {
 		log.WithError(err).Error("Failed to run database migrations")

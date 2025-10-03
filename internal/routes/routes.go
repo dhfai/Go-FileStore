@@ -5,6 +5,7 @@ import (
 	"github.com/dhfai/Go-FileStore.git/internal/middleware"
 	"github.com/dhfai/Go-FileStore.git/internal/services"
 	"github.com/gin-gonic/gin"
+	"gorm.io/gorm"
 )
 
 // SetupRoutes configures all application routes
@@ -13,6 +14,7 @@ func SetupRoutes(
 	authController *controllers.AuthController,
 	profileController *controllers.ProfileController,
 	authService *services.AuthService,
+	db *gorm.DB,
 ) {
 	router.GET("/health", func(c *gin.Context) {
 		c.JSON(200, gin.H{
@@ -35,8 +37,16 @@ func SetupRoutes(
 		}
 
 		protected := v1.Group("/")
-		protected.Use(middleware.AuthMiddleware(authService))
+		protected.Use(middleware.AuthMiddleware(authService, db))
 		{
+			// Auth protected endpoints
+			auth := protected.Group("/auth")
+			{
+				auth.POST("/logout", authController.Logout)
+				auth.POST("/request-delete-account", authController.RequestDeleteAccount)
+				auth.POST("/delete-account", authController.DeleteAccount)
+			}
+
 			profile := protected.Group("/profile")
 			{
 				profile.GET("", profileController.GetProfile)

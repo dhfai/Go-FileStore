@@ -45,7 +45,7 @@ type OTP struct {
 	ID        uuid.UUID `gorm:"type:uuid;primary_key;default:gen_random_uuid()" json:"id"`
 	UserID    uuid.UUID `gorm:"type:uuid;not null;index" json:"user_id"`
 	Code      string    `gorm:"type:varchar(6);not null" json:"code"`
-	Type      string    `gorm:"type:varchar(20);not null" json:"type"` // reset_password, verify_email
+	Type      string    `gorm:"type:varchar(20);not null" json:"type"` // reset_password, verify_email, delete_account
 	ExpiresAt time.Time `gorm:"not null" json:"expires_at"`
 	Used      bool      `gorm:"default:false" json:"used"`
 	CreatedAt time.Time `json:"created_at"`
@@ -53,6 +53,14 @@ type OTP struct {
 
 	// Relationship
 	User User `gorm:"foreignKey:UserID;references:ID" json:"-"`
+}
+
+// TokenBlacklist represents blacklisted JWT tokens
+type TokenBlacklist struct {
+	ID        uuid.UUID `gorm:"type:uuid;primary_key;default:gen_random_uuid()" json:"id"`
+	Token     string    `gorm:"type:text;not null;unique" json:"token"`
+	ExpiresAt time.Time `gorm:"not null" json:"expires_at"`
+	CreatedAt time.Time `json:"created_at"`
 }
 
 // BeforeCreate hook for User
@@ -79,6 +87,14 @@ func (o *OTP) BeforeCreate(tx *gorm.DB) (err error) {
 	return
 }
 
+// BeforeCreate hook for TokenBlacklist
+func (t *TokenBlacklist) BeforeCreate(tx *gorm.DB) (err error) {
+	if t.ID == uuid.Nil {
+		t.ID = uuid.New()
+	}
+	return
+}
+
 // TableName for User
 func (User) TableName() string {
 	return "users"
@@ -92,4 +108,9 @@ func (Profile) TableName() string {
 // TableName for OTP
 func (OTP) TableName() string {
 	return "otps"
+}
+
+// TableName for TokenBlacklist
+func (TokenBlacklist) TableName() string {
+	return "token_blacklists"
 }

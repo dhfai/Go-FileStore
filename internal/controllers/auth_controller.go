@@ -619,3 +619,272 @@ func (ac *AuthController) ResendVerification(c *gin.Context) {
 		Message: "Verification code sent to your email",
 	})
 }
+
+// Logout handles user logout by blacklisting the token
+func (ac *AuthController) Logout(c *gin.Context) {
+	log := logger.GetLogger()
+
+	// Get token from Authorization header
+	tokenString := c.GetHeader("Authorization")
+	if tokenString == "" {
+		c.JSON(http.StatusBadRequest, models.APIResponse{
+			Success: false,
+			Message: "No token provided",
+		})
+		return
+	}
+
+	// Remove "Bearer " prefix if present
+	if len(tokenString) > 7 && tokenString[:7] == "Bearer " {
+		tokenString = tokenString[7:]
+	}
+
+	// Extract token expiry
+	expiresAt, err := ac.authService.ExtractTokenExpiry(tokenString)
+	if err != nil {
+		log.WithError(err).Error("Failed to extract token expiry")
+		c.JSON(http.StatusBadRequest, models.APIResponse{
+			Success: false,
+			Message: "Invalid token",
+		})
+		return
+	}
+
+	// Add token to blacklist
+	blacklistEntry := models.TokenBlacklist{
+		Token:     tokenString,
+		ExpiresAt: expiresAt,
+	}
+
+	if err := ac.db.Create(&blacklistEntry).Error; err != nil {
+		log.WithError(err).Error("Failed to blacklist token")
+		c.JSON(http.StatusInternalServerError, models.APIResponse{
+			Success: false,
+			Message: "Failed to logout",
+		})
+		return
+	}
+
+	log.Info("User successfully logged out")
+
+	c.JSON(http.StatusOK, models.APIResponse{
+		Success: true,
+		Message: "Successfully logged out",
+	})
+}
+
+// RequestDeleteAccount sends OTP for account deletion
+func (ac *AuthController) RequestDeleteAccount(c *gin.Context) {
+	log := logger.GetLogger()
+
+	var req models.RequestDeleteAccountRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		log.WithError(err).Error("Failed to bind delete account request")
+		c.JSON(http.StatusBadRequest, models.APIResponse{
+			Success: false,
+			Message: "Invalid request format",
+			Error:   err.Error(),
+		})
+		return
+	}
+
+	// Validate request
+	if validationErrors := utils.ValidateStruct(req); validationErrors != nil {
+		log.WithField("validation_errors", validationErrors).Warn("Delete account validation failed")
+		c.JSON(http.StatusBadRequest, models.APIResponse{
+			Success: false,
+			Message: "Validation failed",
+			Error:   validationErrors,
+		})
+		return
+	}
+
+	// Get user from context (set by auth middleware)
+	userID, exists := c.Get("user_id")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, models.APIResponse{
+			Success: false,
+			Message: "Unauthorized",
+		})
+		return
+	}
+
+	// Get user from database
+	var user models.User
+	if err := ac.db.Where("id = ?", userID).First(&user).Error; err != nil {
+		log.WithError(err).Error("User not found")
+		c.JSON(http.StatusNotFound, models.APIResponse{
+			Success: false,
+			Message: "User not found",
+		})
+		return
+	}
+
+	// Verify password
+	if !ac.authService.VerifyPassword(user.Password, req.Password) {
+		log.WithField("user_id", user.ID).Warn("Invalid password for delete account request")
+		c.JSON(http.StatusUnauthorized, models.APIResponse{
+			Success: false,
+			Message: "Invalid password",
+		})
+		return
+	}
+
+	// Generate OTP for account deletion
+	otpCode, err := ac.authService.GenerateOTP()
+	if err != nil {
+		log.WithError(err).Error("Failed to generate delete account OTP")
+		c.JSON(http.StatusInternalServerError, models.APIResponse{
+			Success: false,
+			Message: "Failed to generate verification code",
+		})
+		return
+	}
+
+	// Save OTP to database
+	otp := models.OTP{
+		UserID:    user.ID,
+		Code:      otpCode,
+		Type:      "delete_account",
+		ExpiresAt: time.Now().Add(10 * time.Minute), // 10 minutes
+	}
+
+	if err := ac.db.Create(&otp).Error; err != nil {
+		log.WithError(err).Error("Failed to save delete account OTP")
+		c.JSON(http.StatusInternalServerError, models.APIResponse{
+			Success: false,
+			Message: "Failed to process request",
+		})
+		return
+	}
+
+	// Send delete account confirmation email
+	if err := ac.emailService.SendOTPEmail(user.Email, otpCode, "delete_account"); err != nil {
+		log.WithError(err).Error("Failed to send delete account email")
+		// Continue execution as email sending is not critical
+	}
+
+	log.WithField("user_id", user.ID).Info("Delete account OTP sent")
+
+	c.JSON(http.StatusOK, models.APIResponse{
+		Success: true,
+		Message: "Verification code sent to your email for account deletion",
+	})
+}
+
+// DeleteAccount handles account deletion with OTP verification
+func (ac *AuthController) DeleteAccount(c *gin.Context) {
+	log := logger.GetLogger()
+
+	var req models.DeleteAccountRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		log.WithError(err).Error("Failed to bind delete account request")
+		c.JSON(http.StatusBadRequest, models.APIResponse{
+			Success: false,
+			Message: "Invalid request format",
+			Error:   err.Error(),
+		})
+		return
+	}
+
+	// Validate request
+	if validationErrors := utils.ValidateStruct(req); validationErrors != nil {
+		log.WithField("validation_errors", validationErrors).Warn("Delete account validation failed")
+		c.JSON(http.StatusBadRequest, models.APIResponse{
+			Success: false,
+			Message: "Validation failed",
+			Error:   validationErrors,
+		})
+		return
+	}
+
+	// Get user from context (set by auth middleware)
+	userID, exists := c.Get("user_id")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, models.APIResponse{
+			Success: false,
+			Message: "Unauthorized",
+		})
+		return
+	}
+
+	// Get user from database
+	var user models.User
+	if err := ac.db.Where("id = ?", userID).First(&user).Error; err != nil {
+		log.WithError(err).Error("User not found")
+		c.JSON(http.StatusNotFound, models.APIResponse{
+			Success: false,
+			Message: "User not found",
+		})
+		return
+	}
+
+	// Verify OTP
+	var otp models.OTP
+	if err := ac.db.Where("user_id = ? AND code = ? AND type = ? AND used = ? AND expires_at > ?",
+		user.ID, req.OTPCode, "delete_account", false, time.Now()).First(&otp).Error; err != nil {
+		log.WithError(err).Warn("Invalid or expired OTP for account deletion")
+		c.JSON(http.StatusBadRequest, models.APIResponse{
+			Success: false,
+			Message: "Invalid or expired verification code",
+		})
+		return
+	}
+
+	// Start transaction for account deletion
+	tx := ac.db.Begin()
+
+	// Mark OTP as used
+	if err := tx.Model(&otp).Update("used", true).Error; err != nil {
+		tx.Rollback()
+		log.WithError(err).Error("Failed to mark delete account OTP as used")
+		c.JSON(http.StatusInternalServerError, models.APIResponse{
+			Success: false,
+			Message: "Failed to process request",
+		})
+		return
+	}
+
+	// Get current token and blacklist it
+	tokenString := c.GetHeader("Authorization")
+	if tokenString != "" && len(tokenString) > 7 && tokenString[:7] == "Bearer " {
+		tokenString = tokenString[7:]
+
+		// Extract token expiry
+		if expiresAt, err := ac.authService.ExtractTokenExpiry(tokenString); err == nil {
+			blacklistEntry := models.TokenBlacklist{
+				Token:     tokenString,
+				ExpiresAt: expiresAt,
+			}
+			tx.Create(&blacklistEntry)
+		}
+	}
+
+	// Delete user (soft delete with GORM)
+	if err := tx.Delete(&user).Error; err != nil {
+		tx.Rollback()
+		log.WithError(err).Error("Failed to delete user account")
+		c.JSON(http.StatusInternalServerError, models.APIResponse{
+			Success: false,
+			Message: "Failed to delete account",
+		})
+		return
+	}
+
+	// Commit transaction
+	if err := tx.Commit().Error; err != nil {
+		log.WithError(err).Error("Failed to commit account deletion transaction")
+		c.JSON(http.StatusInternalServerError, models.APIResponse{
+			Success: false,
+			Message: "Failed to delete account",
+		})
+		return
+	}
+
+	log.WithField("user_id", user.ID).Info("User account successfully deleted")
+
+	c.JSON(http.StatusOK, models.APIResponse{
+		Success: true,
+		Message: "Account successfully deleted",
+	})
+}
