@@ -52,7 +52,7 @@ func HealthCheckMiddleware() gin.HandlerFunc {
 		if c.Request.URL.Path == "/health" {
 			c.JSON(http.StatusOK, gin.H{
 				"status":    "ok",
-				"timestamp": "2024-01-01T00:00:00Z", // You can use time.Now() here
+				"timestamp": "2024-01-01T00:00:00Z",
 				"service":   "file-store-api",
 			})
 			c.Abort()

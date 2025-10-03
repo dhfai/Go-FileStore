@@ -150,9 +150,17 @@ Authorization: Bearer <jwt_token>
 Content-Type: application/json
 
 {
-    "otp_code": "123456"
+    "code": "123456"
 }
 ```
+
+**⚠️ Important:** This is a **HARD DELETE** operation. All user data including:
+- User account
+- Profile information
+- All OTP records
+- Token blacklist entries
+
+Will be **permanently removed** from the database and **cannot be recovered**.
 
 ### Profile Endpoints (Requires Authentication)
 
@@ -300,7 +308,7 @@ Log levels:
 - `id` (UUID, Primary Key)
 - `user_id` (UUID, Foreign Key)
 - `code` (VARCHAR, 6 digits)
-- `type` (VARCHAR, reset_password/verify_email)
+- `type` (VARCHAR, reset_password/verify_email/delete_account)
 - `expires_at` (TIMESTAMP)
 - `used` (BOOLEAN)
 - `created_at`, `updated_at`
@@ -310,6 +318,20 @@ Log levels:
 - `token` (TEXT, JWT token)
 - `expires_at` (TIMESTAMP)
 - `created_at`
+
+## 🧹 Cleanup & Maintenance
+
+### Automatic Cleanup
+The system includes automatic cleanup service that runs every 24 hours:
+- **Expired Tokens**: Removes expired tokens from blacklist table
+- **Used/Expired OTPs**: Removes used or expired OTP codes
+- **Initial Cleanup**: Runs on application startup
+
+### Hard Delete Policy
+- **Account Deletion**: Permanently removes all user data (hard delete)
+- **Cascade Deletion**: Automatically removes related profile and OTP data
+- **Token Blacklist**: User's current token is immediately blacklisted
+- **Email Availability**: Deleted email addresses become available for re-registration
 
 ## 📮 API Testing
 
@@ -337,6 +359,7 @@ Test files tersedia di folder `tests/`:
 - `api-tests.http` - Basic API testing
 - `email_verification_api.http` - Email verification flow
 - `logout_and_delete_api.http` - Logout dan delete account testing
+- `delete_account_hard_delete_test.http` - Hard delete verification testing
 
 ## Error Handling
 

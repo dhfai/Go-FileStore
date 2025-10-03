@@ -9,7 +9,6 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// ErrorHandlerMiddleware handles panics and errors gracefully
 func ErrorHandlerMiddleware() gin.HandlerFunc {
 	return gin.CustomRecovery(func(c *gin.Context, recovered interface{}) {
 		log := logger.GetLogger()
@@ -31,13 +30,8 @@ func ErrorHandlerMiddleware() gin.HandlerFunc {
 	})
 }
 
-// RateLimitMiddleware implements basic rate limiting (simple in-memory implementation)
-// Note: In production, use Redis-based rate limiting
 func RateLimitMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		// Simple rate limiting logic here
-		// For production, implement proper rate limiting with Redis
-
 		c.Next()
 	}
 }

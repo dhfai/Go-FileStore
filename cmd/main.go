@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"github.com/dhfai/Go-FileStore.git/internal/config"
 	"github.com/dhfai/Go-FileStore.git/internal/controllers"
@@ -39,6 +40,19 @@ func main() {
 
 	authService := services.NewAuthService(cfg.JWT.Secret)
 	emailService := services.NewEmailService(&cfg.Email)
+	cleanupService := services.NewCleanupService(database.DB)
+
+	// Run initial cleanup
+	cleanupService.RunCleanup()
+
+	// Start periodic cleanup (every 24 hours)
+	go func() {
+		ticker := time.NewTicker(24 * time.Hour)
+		defer ticker.Stop()
+		for range ticker.C {
+			cleanupService.RunCleanup()
+		}
+	}()
 
 	authController := controllers.NewAuthController(database.DB, authService, emailService)
 	profileController := controllers.NewProfileController(database.DB)
