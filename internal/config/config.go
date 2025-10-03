@@ -8,7 +8,6 @@ import (
 	"github.com/joho/godotenv"
 )
 
-// Config holds all configuration for our application
 type Config struct {
 	Database DatabaseConfig
 	JWT      JWTConfig
@@ -17,7 +16,6 @@ type Config struct {
 	App      AppConfig
 }
 
-// DatabaseConfig holds database configuration
 type DatabaseConfig struct {
 	Host     string
 	Port     string
@@ -27,18 +25,15 @@ type DatabaseConfig struct {
 	SSLMode  string
 }
 
-// JWTConfig holds JWT configuration
 type JWTConfig struct {
 	Secret string
 }
 
-// ServerConfig holds server configuration
 type ServerConfig struct {
 	Port string
 	Host string
 }
 
-// EmailConfig holds email configuration
 type EmailConfig struct {
 	SMTPHost     string
 	SMTPPort     string
@@ -46,14 +41,12 @@ type EmailConfig struct {
 	SMTPPassword string
 }
 
-// AppConfig holds application configuration
 type AppConfig struct {
 	Environment string
 }
 
-// LoadConfig loads configuration from environment variables
 func LoadConfig() (*Config, error) {
-	// Load .env file if it exists
+
 	if err := godotenv.Load(); err != nil {
 		log.Println("No .env file found, using environment variables")
 	}
@@ -88,7 +81,6 @@ func LoadConfig() (*Config, error) {
 	return config, nil
 }
 
-// GetDSN returns the database connection string
 func (c *Config) GetDSN() string {
 	return fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=%s",
 		c.Database.Host,
@@ -100,7 +92,6 @@ func (c *Config) GetDSN() string {
 	)
 }
 
-// getEnv gets environment variable with fallback
 func getEnv(key, fallback string) string {
 	if value := os.Getenv(key); value != "" {
 		return value

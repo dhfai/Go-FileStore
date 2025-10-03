@@ -56,7 +56,7 @@ Content-Type: application/json
 Authorization: Bearer YOUR_TOKEN_HERE
 
 {
-  "otp_code": "123456"
+  "code": "123456"
 }
 
 ### 8. Try to Access Profile After Account Deletion (Should Fail)
@@ -127,7 +127,7 @@ Content-Type: application/json
 Authorization: Bearer NEW_TOKEN_FROM_STEP_15
 
 {
-  "otp_code": "999999"
+  "code": "999999"
 }
 
 ### 17. Try to Request Delete Account with Wrong Password
@@ -147,5 +147,5 @@ POST http://localhost:8080/api/v1/auth/delete-account
 Content-Type: application/json
 
 {
-  "otp_code": "123456"
+  "code": "123456"
 }

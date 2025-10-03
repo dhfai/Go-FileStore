@@ -10,16 +10,13 @@ import (
 	gormlogger "gorm.io/gorm/logger"
 )
 
-// Database holds the database connection
 type Database struct {
 	DB *gorm.DB
 }
 
-// NewDatabase creates a new database connection
 func NewDatabase(cfg *Config) (*Database, error) {
 	log := logger.GetLogger()
 
-	// Configure GORM logger
 	var gormLogLevel gormlogger.LogLevel
 	if cfg.App.Environment == "development" {
 		gormLogLevel = gormlogger.Info
@@ -35,14 +32,12 @@ func NewDatabase(cfg *Config) (*Database, error) {
 		return nil, fmt.Errorf("failed to connect to database: %w", err)
 	}
 
-	// Get underlying sql.DB to configure connection pool
 	sqlDB, err := db.DB()
 	if err != nil {
 		log.WithError(err).Error("Failed to get underlying sql.DB")
 		return nil, fmt.Errorf("failed to get underlying sql.DB: %w", err)
 	}
 
-	// Configure connection pool
 	sqlDB.SetMaxIdleConns(10)
 	sqlDB.SetMaxOpenConns(100)
 
@@ -50,7 +45,6 @@ func NewDatabase(cfg *Config) (*Database, error) {
 	return &Database{DB: db}, nil
 }
 
-// Migrate runs database migrations
 func (d *Database) Migrate() error {
 	log := logger.GetLogger()
 
@@ -71,7 +65,6 @@ func (d *Database) Migrate() error {
 	return nil
 }
 
-// Close closes the database connection
 func (d *Database) Close() error {
 	log := logger.GetLogger()
 
@@ -90,7 +83,6 @@ func (d *Database) Close() error {
 	return nil
 }
 
-// Health checks the database connection health
 func (d *Database) Health() error {
 	sqlDB, err := d.DB.DB()
 	if err != nil {

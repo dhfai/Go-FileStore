@@ -12,14 +12,12 @@ import (
 	"gorm.io/gorm"
 )
 
-// AuthController handles authentication related requests
 type AuthController struct {
 	db           *gorm.DB
 	authService  *services.AuthService
 	emailService *services.EmailService
 }
 
-// NewAuthController creates a new AuthController
 func NewAuthController(db *gorm.DB, authService *services.AuthService, emailService *services.EmailService) *AuthController {
 	return &AuthController{
 		db:           db,
@@ -28,7 +26,6 @@ func NewAuthController(db *gorm.DB, authService *services.AuthService, emailServ
 	}
 }
 
-// Register handles user registration
 func (ac *AuthController) Register(c *gin.Context) {
 	log := logger.GetLogger()
 
@@ -43,7 +40,6 @@ func (ac *AuthController) Register(c *gin.Context) {
 		return
 	}
 
-	// Validate request
 	if validationErrors := utils.ValidateStruct(req); validationErrors != nil {
 		log.WithField("validation_errors", validationErrors).Warn("Registration validation failed")
 		c.JSON(http.StatusBadRequest, models.APIResponse{
@@ -54,11 +50,9 @@ func (ac *AuthController) Register(c *gin.Context) {
 		return
 	}
 
-	// Normalize email and username
 	req.Email = utils.NormalizeEmail(req.Email)
 	req.Username = utils.NormalizeUsername(req.Username)
 
-	// Check if user already exists
 	var existingUser models.User
 	if err := ac.db.Where("email = ? OR username = ?", req.Email, req.Username).First(&existingUser).Error; err == nil {
 		log.WithField("email", req.Email).WithField("username", req.Username).Warn("User already exists")
@@ -69,7 +63,6 @@ func (ac *AuthController) Register(c *gin.Context) {
 		return
 	}
 
-	// Hash password
 	hashedPassword, err := ac.authService.HashPassword(req.Password)
 	if err != nil {
 		log.WithError(err).Error("Failed to hash password")
@@ -80,7 +73,6 @@ func (ac *AuthController) Register(c *gin.Context) {
 		return
 	}
 
-	// Create user
 	user := models.User{
 		Username: req.Username,
 		Email:    req.Email,
@@ -97,38 +89,36 @@ func (ac *AuthController) Register(c *gin.Context) {
 		return
 	}
 
-	// Create empty profile
 	profile := models.Profile{
 		UserID: user.ID,
 	}
 	if err := ac.db.Create(&profile).Error; err != nil {
 		log.WithError(err).Error("Failed to create user profile")
-		// Continue execution as profile creation is not critical for registration
+
 	}
 
-	// Generate email verification OTP
 	otpCode, err := ac.authService.GenerateOTP()
 	if err != nil {
 		log.WithError(err).Error("Failed to generate verification OTP")
-		// Continue with registration even if OTP generation fails
+
 	} else {
-		// Save OTP to database
+
 		otp := models.OTP{
 			UserID:    user.ID,
 			Code:      otpCode,
 			Type:      "verify_email",
-			ExpiresAt: time.Now().Add(15 * time.Minute), // 15 minutes expiry
+			ExpiresAt: time.Now().Add(15 * time.Minute),
 			Used:      false,
 		}
 
 		if err := ac.db.Create(&otp).Error; err != nil {
 			log.WithError(err).Error("Failed to save verification OTP")
-			// Continue execution as OTP saving is not critical for registration
+
 		} else {
-			// Send verification email
+
 			if err := ac.emailService.SendOTPEmail(user.Email, otpCode, "verify_email"); err != nil {
 				log.WithError(err).Error("Failed to send verification email")
-				// Continue execution as email sending is not critical for registration
+
 			} else {
 				log.WithField("user_id", user.ID).Info("Verification email sent")
 			}
@@ -144,7 +134,6 @@ func (ac *AuthController) Register(c *gin.Context) {
 	})
 }
 
-// Login handles user login
 func (ac *AuthController) Login(c *gin.Context) {
 	log := logger.GetLogger()
 
@@ -159,7 +148,6 @@ func (ac *AuthController) Login(c *gin.Context) {
 		return
 	}
 
-	// Validate request
 	if validationErrors := utils.ValidateStruct(req); validationErrors != nil {
 		log.WithField("validation_errors", validationErrors).Warn("Login validation failed")
 		c.JSON(http.StatusBadRequest, models.APIResponse{
@@ -170,10 +158,8 @@ func (ac *AuthController) Login(c *gin.Context) {
 		return
 	}
 
-	// Normalize email
 	req.Email = utils.NormalizeEmail(req.Email)
 
-	// Find user
 	var user models.User
 	if err := ac.db.Where("email = ?", req.Email).First(&user).Error; err != nil {
 		log.WithField("email", req.Email).Warn("User not found")
@@ -184,7 +170,6 @@ func (ac *AuthController) Login(c *gin.Context) {
 		return
 	}
 
-	// Check if user is active
 	if !user.IsActive {
 		log.WithField("user_id", user.ID).Warn("Inactive user attempted login")
 		c.JSON(http.StatusUnauthorized, models.APIResponse{
@@ -194,7 +179,6 @@ func (ac *AuthController) Login(c *gin.Context) {
 		return
 	}
 
-	// Check if email is verified
 	if !user.EmailVerified {
 		log.WithField("user_id", user.ID).Warn("Unverified email attempted login")
 		c.JSON(http.StatusUnauthorized, models.APIResponse{
@@ -204,7 +188,6 @@ func (ac *AuthController) Login(c *gin.Context) {
 		return
 	}
 
-	// Verify password
 	if !ac.authService.VerifyPassword(user.Password, req.Password) {
 		log.WithField("user_id", user.ID).Warn("Invalid password attempt")
 		c.JSON(http.StatusUnauthorized, models.APIResponse{
@@ -214,7 +197,6 @@ func (ac *AuthController) Login(c *gin.Context) {
 		return
 	}
 
-	// Generate token
 	token, err := ac.authService.GenerateToken(user.ID.String(), user.Email)
 	if err != nil {
 		log.WithError(err).Error("Failed to generate token")
@@ -225,7 +207,6 @@ func (ac *AuthController) Login(c *gin.Context) {
 		return
 	}
 
-	// Load user profile
 	var profile models.Profile
 	if err := ac.db.Where("user_id = ?", user.ID).First(&profile).Error; err == nil {
 		user.Profile = &profile
@@ -243,7 +224,6 @@ func (ac *AuthController) Login(c *gin.Context) {
 	})
 }
 
-// ForgetPassword handles password reset request
 func (ac *AuthController) ForgetPassword(c *gin.Context) {
 	log := logger.GetLogger()
 
@@ -258,7 +238,6 @@ func (ac *AuthController) ForgetPassword(c *gin.Context) {
 		return
 	}
 
-	// Validate request
 	if validationErrors := utils.ValidateStruct(req); validationErrors != nil {
 		log.WithField("validation_errors", validationErrors).Warn("Forget password validation failed")
 		c.JSON(http.StatusBadRequest, models.APIResponse{
@@ -269,13 +248,11 @@ func (ac *AuthController) ForgetPassword(c *gin.Context) {
 		return
 	}
 
-	// Normalize email
 	req.Email = utils.NormalizeEmail(req.Email)
 
-	// Find user
 	var user models.User
 	if err := ac.db.Where("email = ?", req.Email).First(&user).Error; err != nil {
-		// Don't reveal if email exists or not for security
+
 		log.WithField("email", req.Email).Warn("Forget password request for non-existent email")
 		c.JSON(http.StatusOK, models.APIResponse{
 			Success: true,
@@ -284,7 +261,6 @@ func (ac *AuthController) ForgetPassword(c *gin.Context) {
 		return
 	}
 
-	// Generate OTP
 	otpCode, err := ac.authService.GenerateOTP()
 	if err != nil {
 		log.WithError(err).Error("Failed to generate OTP")
@@ -295,12 +271,11 @@ func (ac *AuthController) ForgetPassword(c *gin.Context) {
 		return
 	}
 
-	// Save OTP to database
 	otp := models.OTP{
 		UserID:    user.ID,
 		Code:      otpCode,
 		Type:      "reset_password",
-		ExpiresAt: time.Now().Add(15 * time.Minute), // 15 minutes expiry
+		ExpiresAt: time.Now().Add(15 * time.Minute),
 		Used:      false,
 	}
 
@@ -313,10 +288,9 @@ func (ac *AuthController) ForgetPassword(c *gin.Context) {
 		return
 	}
 
-	// Send OTP email
 	if err := ac.emailService.SendOTPEmail(user.Email, otpCode, "reset_password"); err != nil {
 		log.WithError(err).Error("Failed to send OTP email")
-		// Continue execution as email sending is not critical
+
 	}
 
 	log.WithField("user_id", user.ID).Info("Password reset OTP generated")
@@ -327,7 +301,6 @@ func (ac *AuthController) ForgetPassword(c *gin.Context) {
 	})
 }
 
-// ResetPassword handles password reset with OTP
 func (ac *AuthController) ResetPassword(c *gin.Context) {
 	log := logger.GetLogger()
 
@@ -342,7 +315,6 @@ func (ac *AuthController) ResetPassword(c *gin.Context) {
 		return
 	}
 
-	// Validate request
 	if validationErrors := utils.ValidateStruct(req); validationErrors != nil {
 		log.WithField("validation_errors", validationErrors).Warn("Reset password validation failed")
 		c.JSON(http.StatusBadRequest, models.APIResponse{
@@ -353,10 +325,8 @@ func (ac *AuthController) ResetPassword(c *gin.Context) {
 		return
 	}
 
-	// Normalize email
 	req.Email = utils.NormalizeEmail(req.Email)
 
-	// Find user
 	var user models.User
 	if err := ac.db.Where("email = ?", req.Email).First(&user).Error; err != nil {
 		log.WithField("email", req.Email).Warn("Reset password request for non-existent email")
@@ -367,7 +337,6 @@ func (ac *AuthController) ResetPassword(c *gin.Context) {
 		return
 	}
 
-	// Find valid OTP
 	var otp models.OTP
 	if err := ac.db.Where("user_id = ? AND code = ? AND type = ? AND used = ? AND expires_at > ?",
 		user.ID, req.OTPCode, "reset_password", false, time.Now()).First(&otp).Error; err != nil {
@@ -379,7 +348,6 @@ func (ac *AuthController) ResetPassword(c *gin.Context) {
 		return
 	}
 
-	// Hash new password
 	hashedPassword, err := ac.authService.HashPassword(req.NewPassword)
 	if err != nil {
 		log.WithError(err).Error("Failed to hash new password")
@@ -390,10 +358,8 @@ func (ac *AuthController) ResetPassword(c *gin.Context) {
 		return
 	}
 
-	// Update password and mark OTP as used
 	tx := ac.db.Begin()
 
-	// Update user password
 	if err := tx.Model(&user).Update("password", hashedPassword).Error; err != nil {
 		tx.Rollback()
 		log.WithError(err).Error("Failed to update password")
@@ -404,7 +370,6 @@ func (ac *AuthController) ResetPassword(c *gin.Context) {
 		return
 	}
 
-	// Mark OTP as used
 	if err := tx.Model(&otp).Update("used", true).Error; err != nil {
 		tx.Rollback()
 		log.WithError(err).Error("Failed to mark OTP as used")
@@ -425,7 +390,6 @@ func (ac *AuthController) ResetPassword(c *gin.Context) {
 	})
 }
 
-// VerifyEmail handles email verification with OTP
 func (ac *AuthController) VerifyEmail(c *gin.Context) {
 	log := logger.GetLogger()
 
@@ -440,7 +404,6 @@ func (ac *AuthController) VerifyEmail(c *gin.Context) {
 		return
 	}
 
-	// Validate request
 	if validationErrors := utils.ValidateStruct(req); validationErrors != nil {
 		log.WithField("validation_errors", validationErrors).Warn("Email verification validation failed")
 		c.JSON(http.StatusBadRequest, models.APIResponse{
@@ -451,10 +414,8 @@ func (ac *AuthController) VerifyEmail(c *gin.Context) {
 		return
 	}
 
-	// Normalize email
 	req.Email = utils.NormalizeEmail(req.Email)
 
-	// Find user
 	var user models.User
 	if err := ac.db.Where("email = ?", req.Email).First(&user).Error; err != nil {
 		log.WithField("email", req.Email).Warn("Email verification request for non-existent email")
@@ -465,7 +426,6 @@ func (ac *AuthController) VerifyEmail(c *gin.Context) {
 		return
 	}
 
-	// Check if email is already verified
 	if user.EmailVerified {
 		log.WithField("user_id", user.ID).Warn("Email already verified")
 		c.JSON(http.StatusBadRequest, models.APIResponse{
@@ -475,7 +435,6 @@ func (ac *AuthController) VerifyEmail(c *gin.Context) {
 		return
 	}
 
-	// Find valid OTP
 	var otp models.OTP
 	if err := ac.db.Where("user_id = ? AND code = ? AND type = ? AND used = ? AND expires_at > ?",
 		user.ID, req.OTPCode, "verify_email", false, time.Now()).First(&otp).Error; err != nil {
@@ -487,11 +446,10 @@ func (ac *AuthController) VerifyEmail(c *gin.Context) {
 		return
 	}
 
-	// Update user email verification status and mark OTP as used
 	tx := ac.db.Begin()
 
 	now := time.Now()
-	// Update user email verification
+
 	if err := tx.Model(&user).Updates(map[string]interface{}{
 		"email_verified":    true,
 		"email_verified_at": &now,
@@ -505,7 +463,6 @@ func (ac *AuthController) VerifyEmail(c *gin.Context) {
 		return
 	}
 
-	// Mark OTP as used
 	if err := tx.Model(&otp).Update("used", true).Error; err != nil {
 		tx.Rollback()
 		log.WithError(err).Error("Failed to mark OTP as used")
@@ -526,7 +483,6 @@ func (ac *AuthController) VerifyEmail(c *gin.Context) {
 	})
 }
 
-// ResendVerification resends email verification OTP
 func (ac *AuthController) ResendVerification(c *gin.Context) {
 	log := logger.GetLogger()
 
@@ -541,7 +497,6 @@ func (ac *AuthController) ResendVerification(c *gin.Context) {
 		return
 	}
 
-	// Validate request
 	if validationErrors := utils.ValidateStruct(req); validationErrors != nil {
 		log.WithField("validation_errors", validationErrors).Warn("Resend verification validation failed")
 		c.JSON(http.StatusBadRequest, models.APIResponse{
@@ -552,13 +507,11 @@ func (ac *AuthController) ResendVerification(c *gin.Context) {
 		return
 	}
 
-	// Normalize email
 	req.Email = utils.NormalizeEmail(req.Email)
 
-	// Find user
 	var user models.User
 	if err := ac.db.Where("email = ?", req.Email).First(&user).Error; err != nil {
-		// Don't reveal if email exists or not for security
+
 		log.WithField("email", req.Email).Warn("Resend verification request for non-existent email")
 		c.JSON(http.StatusOK, models.APIResponse{
 			Success: true,
@@ -567,7 +520,6 @@ func (ac *AuthController) ResendVerification(c *gin.Context) {
 		return
 	}
 
-	// Check if email is already verified
 	if user.EmailVerified {
 		log.WithField("user_id", user.ID).Warn("Resend verification for already verified email")
 		c.JSON(http.StatusBadRequest, models.APIResponse{
@@ -577,7 +529,6 @@ func (ac *AuthController) ResendVerification(c *gin.Context) {
 		return
 	}
 
-	// Generate OTP
 	otpCode, err := ac.authService.GenerateOTP()
 	if err != nil {
 		log.WithError(err).Error("Failed to generate verification OTP")
@@ -588,12 +539,11 @@ func (ac *AuthController) ResendVerification(c *gin.Context) {
 		return
 	}
 
-	// Save OTP to database
 	otp := models.OTP{
 		UserID:    user.ID,
 		Code:      otpCode,
 		Type:      "verify_email",
-		ExpiresAt: time.Now().Add(15 * time.Minute), // 15 minutes expiry
+		ExpiresAt: time.Now().Add(15 * time.Minute),
 		Used:      false,
 	}
 
@@ -606,10 +556,9 @@ func (ac *AuthController) ResendVerification(c *gin.Context) {
 		return
 	}
 
-	// Send verification email
 	if err := ac.emailService.SendOTPEmail(user.Email, otpCode, "verify_email"); err != nil {
 		log.WithError(err).Error("Failed to send verification email")
-		// Continue execution as email sending is not critical
+
 	}
 
 	log.WithField("user_id", user.ID).Info("Email verification OTP resent")
@@ -620,11 +569,9 @@ func (ac *AuthController) ResendVerification(c *gin.Context) {
 	})
 }
 
-// Logout handles user logout by blacklisting the token
 func (ac *AuthController) Logout(c *gin.Context) {
 	log := logger.GetLogger()
 
-	// Get token from Authorization header
 	tokenString := c.GetHeader("Authorization")
 	if tokenString == "" {
 		c.JSON(http.StatusBadRequest, models.APIResponse{
@@ -634,12 +581,10 @@ func (ac *AuthController) Logout(c *gin.Context) {
 		return
 	}
 
-	// Remove "Bearer " prefix if present
 	if len(tokenString) > 7 && tokenString[:7] == "Bearer " {
 		tokenString = tokenString[7:]
 	}
 
-	// Extract token expiry
 	expiresAt, err := ac.authService.ExtractTokenExpiry(tokenString)
 	if err != nil {
 		log.WithError(err).Error("Failed to extract token expiry")
@@ -650,7 +595,6 @@ func (ac *AuthController) Logout(c *gin.Context) {
 		return
 	}
 
-	// Add token to blacklist
 	blacklistEntry := models.TokenBlacklist{
 		Token:     tokenString,
 		ExpiresAt: expiresAt,
@@ -673,7 +617,6 @@ func (ac *AuthController) Logout(c *gin.Context) {
 	})
 }
 
-// RequestDeleteAccount sends OTP for account deletion
 func (ac *AuthController) RequestDeleteAccount(c *gin.Context) {
 	log := logger.GetLogger()
 
@@ -688,7 +631,6 @@ func (ac *AuthController) RequestDeleteAccount(c *gin.Context) {
 		return
 	}
 
-	// Validate request
 	if validationErrors := utils.ValidateStruct(req); validationErrors != nil {
 		log.WithField("validation_errors", validationErrors).Warn("Delete account validation failed")
 		c.JSON(http.StatusBadRequest, models.APIResponse{
@@ -699,7 +641,6 @@ func (ac *AuthController) RequestDeleteAccount(c *gin.Context) {
 		return
 	}
 
-	// Get user from context (set by auth middleware)
 	userID, exists := c.Get("user_id")
 	if !exists {
 		c.JSON(http.StatusUnauthorized, models.APIResponse{
@@ -709,7 +650,6 @@ func (ac *AuthController) RequestDeleteAccount(c *gin.Context) {
 		return
 	}
 
-	// Get user from database
 	var user models.User
 	if err := ac.db.Where("id = ?", userID).First(&user).Error; err != nil {
 		log.WithError(err).Error("User not found")
@@ -720,7 +660,6 @@ func (ac *AuthController) RequestDeleteAccount(c *gin.Context) {
 		return
 	}
 
-	// Verify password
 	if !ac.authService.VerifyPassword(user.Password, req.Password) {
 		log.WithField("user_id", user.ID).Warn("Invalid password for delete account request")
 		c.JSON(http.StatusUnauthorized, models.APIResponse{
@@ -730,7 +669,6 @@ func (ac *AuthController) RequestDeleteAccount(c *gin.Context) {
 		return
 	}
 
-	// Generate OTP for account deletion
 	otpCode, err := ac.authService.GenerateOTP()
 	if err != nil {
 		log.WithError(err).Error("Failed to generate delete account OTP")
@@ -741,12 +679,11 @@ func (ac *AuthController) RequestDeleteAccount(c *gin.Context) {
 		return
 	}
 
-	// Save OTP to database
 	otp := models.OTP{
 		UserID:    user.ID,
 		Code:      otpCode,
 		Type:      "delete_account",
-		ExpiresAt: time.Now().Add(10 * time.Minute), // 10 minutes
+		ExpiresAt: time.Now().Add(10 * time.Minute),
 	}
 
 	if err := ac.db.Create(&otp).Error; err != nil {
@@ -758,10 +695,9 @@ func (ac *AuthController) RequestDeleteAccount(c *gin.Context) {
 		return
 	}
 
-	// Send delete account confirmation email
 	if err := ac.emailService.SendOTPEmail(user.Email, otpCode, "delete_account"); err != nil {
 		log.WithError(err).Error("Failed to send delete account email")
-		// Continue execution as email sending is not critical
+
 	}
 
 	log.WithField("user_id", user.ID).Info("Delete account OTP sent")
@@ -772,7 +708,6 @@ func (ac *AuthController) RequestDeleteAccount(c *gin.Context) {
 	})
 }
 
-// DeleteAccount handles account deletion with OTP verification
 func (ac *AuthController) DeleteAccount(c *gin.Context) {
 	log := logger.GetLogger()
 
@@ -787,7 +722,6 @@ func (ac *AuthController) DeleteAccount(c *gin.Context) {
 		return
 	}
 
-	// Validate request
 	if validationErrors := utils.ValidateStruct(req); validationErrors != nil {
 		log.WithField("validation_errors", validationErrors).Warn("Delete account validation failed")
 		c.JSON(http.StatusBadRequest, models.APIResponse{
@@ -798,7 +732,6 @@ func (ac *AuthController) DeleteAccount(c *gin.Context) {
 		return
 	}
 
-	// Get user from context (set by auth middleware)
 	userID, exists := c.Get("user_id")
 	if !exists {
 		c.JSON(http.StatusUnauthorized, models.APIResponse{
@@ -808,7 +741,6 @@ func (ac *AuthController) DeleteAccount(c *gin.Context) {
 		return
 	}
 
-	// Get user from database
 	var user models.User
 	if err := ac.db.Where("id = ?", userID).First(&user).Error; err != nil {
 		log.WithError(err).Error("User not found")
@@ -819,7 +751,6 @@ func (ac *AuthController) DeleteAccount(c *gin.Context) {
 		return
 	}
 
-	// Verify OTP
 	var otp models.OTP
 	if err := ac.db.Where("user_id = ? AND code = ? AND type = ? AND used = ? AND expires_at > ?",
 		user.ID, req.OTPCode, "delete_account", false, time.Now()).First(&otp).Error; err != nil {
@@ -831,10 +762,8 @@ func (ac *AuthController) DeleteAccount(c *gin.Context) {
 		return
 	}
 
-	// Start transaction for account deletion
 	tx := ac.db.Begin()
 
-	// Mark OTP as used
 	if err := tx.Model(&otp).Update("used", true).Error; err != nil {
 		tx.Rollback()
 		log.WithError(err).Error("Failed to mark delete account OTP as used")
@@ -845,12 +774,10 @@ func (ac *AuthController) DeleteAccount(c *gin.Context) {
 		return
 	}
 
-	// Get current token and blacklist it
 	tokenString := c.GetHeader("Authorization")
 	if tokenString != "" && len(tokenString) > 7 && tokenString[:7] == "Bearer " {
 		tokenString = tokenString[7:]
 
-		// Extract token expiry
 		if expiresAt, err := ac.authService.ExtractTokenExpiry(tokenString); err == nil {
 			blacklistEntry := models.TokenBlacklist{
 				Token:     tokenString,
@@ -860,8 +787,27 @@ func (ac *AuthController) DeleteAccount(c *gin.Context) {
 		}
 	}
 
-	// Delete user (soft delete with GORM)
-	if err := tx.Delete(&user).Error; err != nil {
+	if err := tx.Unscoped().Where("user_id = ?", user.ID).Delete(&models.OTP{}).Error; err != nil {
+		tx.Rollback()
+		log.WithError(err).Error("Failed to delete user OTPs")
+		c.JSON(http.StatusInternalServerError, models.APIResponse{
+			Success: false,
+			Message: "Failed to delete account",
+		})
+		return
+	}
+
+	if err := tx.Unscoped().Where("user_id = ?", user.ID).Delete(&models.Profile{}).Error; err != nil {
+		tx.Rollback()
+		log.WithError(err).Error("Failed to delete user profile")
+		c.JSON(http.StatusInternalServerError, models.APIResponse{
+			Success: false,
+			Message: "Failed to delete account",
+		})
+		return
+	}
+
+	if err := tx.Unscoped().Delete(&user).Error; err != nil {
 		tx.Rollback()
 		log.WithError(err).Error("Failed to delete user account")
 		c.JSON(http.StatusInternalServerError, models.APIResponse{
@@ -871,7 +817,6 @@ func (ac *AuthController) DeleteAccount(c *gin.Context) {
 		return
 	}
 
-	// Commit transaction
 	if err := tx.Commit().Error; err != nil {
 		log.WithError(err).Error("Failed to commit account deletion transaction")
 		c.JSON(http.StatusInternalServerError, models.APIResponse{
