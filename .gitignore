@@ -55,3 +55,5 @@ temp/
 
 # Docker
 docker-compose.override.yml
+
+credentials/*.json
