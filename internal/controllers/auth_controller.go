@@ -478,8 +478,8 @@ func (ac *AuthController) VerifyEmail(c *gin.Context) {
 	// Find valid OTP
 	var otp models.OTP
 	if err := ac.db.Where("user_id = ? AND code = ? AND type = ? AND used = ? AND expires_at > ?",
-		user.ID, req.OTPCode, "verify_email", false, time.Now()).First(&otp).Error; err != nil {
-		log.WithField("user_id", user.ID).WithField("otp_code", req.OTPCode).Warn("Invalid or expired verification OTP")
+		user.ID, req.Code, "verify_email", false, time.Now()).First(&otp).Error; err != nil {
+		log.WithField("user_id", user.ID).WithField("otp_code", req.Code).Warn("Invalid or expired verification OTP")
 		c.JSON(http.StatusBadRequest, models.APIResponse{
 			Success: false,
 			Message: "Invalid or expired verification code",

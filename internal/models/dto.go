@@ -32,8 +32,8 @@ type ResetPasswordRequest struct {
 
 // VerifyEmailRequest represents the email verification request payload
 type VerifyEmailRequest struct {
-	Email   string `json:"email" validate:"required,email"`
-	OTPCode string `json:"otp_code" validate:"required,len=6"`
+	Email string `json:"email" validate:"required,email"`
+	Code  string `json:"code" validate:"required,len=6"`
 }
 
 // ResendVerificationRequest represents the resend verification email request payload
