@@ -114,3 +114,17 @@ func (s *AuthService) IsValidEmail(email string) bool {
 
 	return true
 }
+
+// ExtractTokenExpiry extracts expiry time from JWT token
+func (s *AuthService) ExtractTokenExpiry(tokenString string) (time.Time, error) {
+	claims, err := s.ValidateToken(tokenString)
+	if err != nil {
+		return time.Time{}, err
+	}
+
+	if exp, ok := claims["exp"].(float64); ok {
+		return time.Unix(int64(exp), 0), nil
+	}
+
+	return time.Time{}, fmt.Errorf("unable to extract expiry from token")
+}

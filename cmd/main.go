@@ -55,7 +55,7 @@ func main() {
 
 	routes.SetupMiddleware(router)
 
-	routes.SetupRoutes(router, authController, profileController, authService)
+	routes.SetupRoutes(router, authController, profileController, authService, database.DB)
 
 	serverAddr := fmt.Sprintf("%s:%s", cfg.Server.Host, cfg.Server.Port)
 
@@ -76,6 +76,5 @@ func main() {
 
 	log.Info("Shutting down server...")
 
-	// Perform cleanup
 	log.Info("Server shutdown complete")
 }

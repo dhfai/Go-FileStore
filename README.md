@@ -59,7 +59,7 @@ file-store/
 
 ### Authentication Endpoints
 
-#### Register
+#### Register (Sends Verification Email)
 ```http
 POST /api/v1/auth/register
 Content-Type: application/json
@@ -72,7 +72,28 @@ Content-Type: application/json
 }
 ```
 
-#### Login
+#### Verify Email
+```http
+POST /api/v1/auth/verify-email
+Content-Type: application/json
+
+{
+    "email": "john@example.com",
+    "code": "123456"
+}
+```
+
+#### Resend Verification Email
+```http
+POST /api/v1/auth/resend-verification
+Content-Type: application/json
+
+{
+    "email": "john@example.com"
+}
+```
+
+#### Login (Requires Verified Email)
 ```http
 POST /api/v1/auth/login
 Content-Type: application/json
@@ -102,6 +123,34 @@ Content-Type: application/json
     "email": "john@example.com",
     "otp_code": "123456",
     "new_password": "NewSecurePass123!"
+}
+```
+
+#### Logout (Requires Authentication)
+```http
+POST /api/v1/auth/logout
+Authorization: Bearer <jwt_token>
+```
+
+#### Request Delete Account (Requires Authentication)
+```http
+POST /api/v1/auth/request-delete-account
+Authorization: Bearer <jwt_token>
+Content-Type: application/json
+
+{
+    "password": "your_current_password"
+}
+```
+
+#### Delete Account (Requires Authentication)
+```http
+POST /api/v1/auth/delete-account
+Authorization: Bearer <jwt_token>
+Content-Type: application/json
+
+{
+    "otp_code": "123456"
 }
 ```
 
@@ -255,6 +304,39 @@ Log levels:
 - `expires_at` (TIMESTAMP)
 - `used` (BOOLEAN)
 - `created_at`, `updated_at`
+
+### TokenBlacklist Table
+- `id` (UUID, Primary Key)
+- `token` (TEXT, JWT token)
+- `expires_at` (TIMESTAMP)
+- `created_at`
+
+## 📮 API Testing
+
+### Postman Collection
+Complete Postman collection tersedia di folder `postman/`:
+- `postman-collection.json` - Complete API collection dengan semua endpoints
+- `filestore-environment.json` - Environment variables template
+- `README.md` - Detailed setup dan usage guide
+
+**Features:**
+- ✅ Auto token management (login saves token, logout clears token)
+- ✅ Environment variables untuk easy testing
+- ✅ Complete request examples untuk semua endpoints
+- ✅ Test scripts untuk workflow automation
+- ✅ Pre-configured untuk development dan production testing
+
+**Quick Setup:**
+1. Import kedua files ke Postman
+2. Pilih "File Store API Environment"
+3. Run Register → Verify Email → Login
+4. Token otomatis tersimpan, siap untuk testing protected endpoints
+
+### VS Code REST Client
+Test files tersedia di folder `tests/`:
+- `api-tests.http` - Basic API testing
+- `email_verification_api.http` - Email verification flow
+- `logout_and_delete_api.http` - Logout dan delete account testing
 
 ## Error Handling
 
